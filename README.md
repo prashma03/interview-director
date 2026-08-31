@@ -9,6 +9,17 @@ Interview Director is a two-stage AI interview prototype built around an explici
 - Candidate answers persist across the introduction → experience handoff.
 - The UI exposes latency, interruptions, handoffs, and captured evidence.
 - The debrief is designed to cite the candidate's own answers rather than inventing feedback.
+- Each answer is mapped to employer-relevant signals: identity, strengths, direction, role connection, context, ownership, reasoning, difficulty, impact, and reflection.
+- Follow-ups are adaptive (zero when evidence is complete, otherwise a maximum of two per primary question).
+- Candidate timing uses gentle language after long answers; only stage fallbacks are deterministic timers.
+
+## Interview policy
+
+- Introduction: two primary questions, up to two evidence-driven follow-ups each, 150-second stage fallback.
+- Past experience: three primary questions, up to two evidence-driven follow-ups each, 300-second stage fallback.
+- No visible per-question countdown and no penalty for answer duration.
+- At 2½ minutes, the Director records a soft redirect and narrows the next prompt at a natural boundary.
+- Every follow-up records the missing evidence and every handoff records its trigger.
 
 ## Run locally
 
