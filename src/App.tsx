@@ -16,6 +16,8 @@ export function App() {
   const [micOn, setMicOn] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [integrityEvents, setIntegrityEvents] = useState<IntegrityEvent[]>([]);
+  const [repeatCount, setRepeatCount] = useState(0);
+  const [captionStatus, setCaptionStatus] = useState("Subtitles on");
 
   useEffect(() => {
     if (state.stage === "briefing" || state.stage === "debrief") return;
@@ -33,12 +35,29 @@ export function App() {
     return () => { document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("blur", onBlur); };
   }, [state.stage]);
 
+  useEffect(() => {
+    setRepeatCount(0);
+    setCaptionStatus("Subtitles on");
+    window.speechSynthesis?.cancel();
+  }, [state.currentPrompt]);
+
   const coverage = useMemo(() => new Set(coveredSignals(state, state.stage === "debrief" ? "experience" : state.stage)), [state]);
   const allCoverage = useMemo(() => new Set(state.evidence.flatMap((item) => item.signals)), [state.evidence]);
   const score = Math.round((allCoverage.size / ALL_SIGNALS.length) * 100);
   const guidance = answerGuidance(state.questionStartedAt, now);
   const integrity = summarizeIntegrity(integrityEvents);
   const stageQuestions = state.stage === "introduction" ? 2 : 3;
+
+  const repeatQuestion = () => {
+    setRepeatCount((count) => count + 1);
+    setCaptionStatus("Replaying question…");
+    window.speechSynthesis?.cancel();
+    const utterance = new SpeechSynthesisUtterance(state.currentPrompt);
+    utterance.rate = 0.94;
+    utterance.onend = () => setCaptionStatus("Subtitles on");
+    utterance.onerror = () => setCaptionStatus("Subtitles on · audio unavailable");
+    window.speechSynthesis?.speak(utterance);
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -62,7 +81,7 @@ export function App() {
           <div className="avatar" aria-label="AI interviewer portrait placeholder"><div className="orbit orbit-a"/><div className="orbit orbit-b"/><div className="face"><span>AI</span></div><div className="voice-bars">{[1,2,3,4,5,6,7].map((n)=><i key={n} style={{height:`${8+(n%4)*6}px`}}/>)}</div></div>
           {state.stage === "briefing" ? <div className="briefing"><span className="act">PRE-FLIGHT</span><h2>Two stages. Seven minutes.<br/>One story worth remembering.</h2><p className="brief-copy">Aim for one to two minutes per answer. I may ask a focused follow-up or gently move us forward so we can cover what employers need.</p><div className="integrity-disclosure"><b>ATTENTION MONITORING</b><p>We record when this tab is hidden, the window loses focus, or answer text is pasted. We cannot see other tab URLs or identify which application you use. Signals support human review and are not proof of misconduct.</p></div><button onClick={()=>dispatch({type:"START",now:Date.now()})}>I understand · Enter interview <span>↗</span></button></div>
           : state.stage === "debrief" ? <div className="debrief"><span className="act">EVIDENCE MAP</span><div className="score">{score}<sup>/100</sup></div><h2>{score >= 70 ? "Strong, well-supported signal" : "Useful signal—with clear gaps"}</h2><p>Captured {allCoverage.size} of {ALL_SIGNALS.length} employer-relevant signals across {state.evidence.length} answers. Missing evidence is reported, never invented.</p><div className="integrity-summary"><b>INTERVIEW INTEGRITY · {integrityEvents.length} SIGNALS</b><p>{integrity.statement}</p><span>Tab hidden {integrity.hidden} · Focus changes {integrity.blur} · Pastes {integrity.paste}</span></div><div className="signal-grid">{ALL_SIGNALS.map((item)=><span className={allCoverage.has(item)?"captured":"missing"} key={item}>{allCoverage.has(item)?"✓":"○"} {signalLabel(item)}</span>)}</div><button onClick={()=>window.location.reload()}>Run another interview</button></div>
-          : <div className="conversation"><div className="question-meta"><span className="act">{state.stage === "introduction"?"ACT I — YOUR SIGNAL":"ACT II — DECISION STORY"}</span><span>QUESTION {state.primaryQuestion+1}/{stageQuestions} · FOLLOW-UP {state.followUpCount}/2</span></div><h2>{state.currentPrompt}</h2><div className="why"><b>WHY THIS QUESTION</b><p>{state.promptReason}</p></div><form onSubmit={submit}><textarea aria-label="Interview answer" value={answer} onPaste={(event)=>setIntegrityEvents((current)=>[...current,{type:"paste",at:Date.now(),detail:`${event.clipboardData.getData("text").length} characters pasted.`}])} onChange={(e)=>setAnswer(e.target.value)} placeholder="Demo mode: type your spoken answer here…"/><p className={`guidance ${guidance.tone}`}>{guidance.text}</p><div className="controls"><button type="button" className={`mic ${micOn?"live":""}`} onClick={()=>setMicOn(!micOn)}>{micOn?"Listening…":"Enable voice"}</button><button type="submit">Send answer ↗</button></div></form><button className="end" onClick={()=>dispatch({type:"END",now:Date.now()})}>End interview</button></div>}
+          : <div className="conversation"><div className="question-meta"><span className="act">{state.stage === "introduction"?"ACT I — YOUR SIGNAL":"ACT II — DECISION STORY"}</span><span>QUESTION {state.primaryQuestion+1}/{stageQuestions} · FOLLOW-UP {state.followUpCount}/2</span></div><div className="subtitle" aria-live="polite"><span>CC · {captionStatus}</span><p>{state.currentPrompt}</p></div><div className="question-actions"><button type="button" className="repeat" onClick={repeatQuestion}>↻ Repeat question</button><small>{repeatCount ? `Repeated ${repeatCount} ${repeatCount===1?"time":"times"} · no score impact` : "Repeat anytime · no score impact"}</small></div><div className="why"><b>WHY THIS QUESTION</b><p>{state.promptReason}</p></div><form onSubmit={submit}><textarea aria-label="Interview answer" value={answer} onPaste={(event)=>setIntegrityEvents((current)=>[...current,{type:"paste",at:Date.now(),detail:`${event.clipboardData.getData("text").length} characters pasted.`}])} onChange={(e)=>setAnswer(e.target.value)} placeholder="Demo mode: type your spoken answer here…"/><p className={`guidance ${guidance.tone}`}>{guidance.text}</p><div className="controls"><button type="button" className={`mic ${micOn?"live":""}`} onClick={()=>setMicOn(!micOn)}>{micOn?"Listening…":"Enable voice"}</button><button type="submit">Send answer ↗</button></div></form><button className="end" onClick={()=>dispatch({type:"END",now:Date.now()})}>End interview</button></div>}
         </div>
       </div>
       <aside className="telemetry">

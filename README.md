@@ -25,6 +25,10 @@ Interview Director is a two-stage AI interview prototype built around an explici
 
 The candidate receives a clear pre-interview disclosure. During an active interview the client records tab-hidden events, window focus loss, and pasted answer text. Browser security prevents this app from reading another tab's URL, so the product never claims to know that ChatGPT or another specific site was opened. Integrity signals are presented as context for human review, not automatic proof of misconduct.
 
+## Accessibility
+
+Interviewer prompts remain visible as persistent subtitles. Candidates can use **Repeat question** at any time; the action replays the prompt in demo mode, does not consume a follow-up, and never affects evidence scoring. A production LiveKit adapter should route this action to the active agent's speech output while keeping the same caption text.
+
 ## Run locally
 
 ```bash
