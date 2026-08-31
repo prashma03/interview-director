@@ -21,6 +21,10 @@ Interview Director is a two-stage AI interview prototype built around an explici
 - At 2½ minutes, the Director records a soft redirect and narrows the next prompt at a natural boundary.
 - Every follow-up records the missing evidence and every handoff records its trigger.
 
+## Interview integrity signals
+
+The candidate receives a clear pre-interview disclosure. During an active interview the client records tab-hidden events, window focus loss, and pasted answer text. Browser security prevents this app from reading another tab's URL, so the product never claims to know that ChatGPT or another specific site was opened. Integrity signals are presented as context for human review, not automatic proof of misconduct.
+
 ## Run locally
 
 ```bash
