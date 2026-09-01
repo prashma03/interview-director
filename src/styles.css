@@ -30,3 +30,30 @@ nav{font-size:14px}.eyebrow,.act{font-size:13px}.lede{font-size:17px}.stage>span
   .rail,.telemetry{padding:36px 28px}
   .briefing,.conversation,.debrief{padding-left:7%;padding-right:7%}
 }
+
+/* Laptop readability pass: keep editorial hierarchy, but never rely on
+   microtype for information the candidate must actually read. */
+button{font-size:16px}
+nav{font-size:16px}
+.eyebrow,.act{font-size:14px}
+.lede{font-size:18px}
+.stage>span{font-size:14px}.stage b{font-size:18px}.stage small{font-size:13px}
+.principle span{font-size:13px}.principle p{font-size:16px}
+.room-head small{font-size:13px}.room-head input{font-size:18px}
+.brief-copy{font-size:17px}
+.question-meta>span:last-child{font-size:13px}
+.why b{font-size:13px}.why p{font-size:16px}
+.conversation textarea{font-size:18px}
+.guidance{font-size:14px}
+.question-actions small{font-size:13px}
+.conversation .question-actions .repeat{font-size:14px}
+.integrity-disclosure b,.integrity-summary b,.fairness-controls>b,.evidence-receipt>b,.recourse>b{font-size:13px}
+.integrity-disclosure p,.integrity-summary p,.fairness-controls>p,.recourse p{font-size:15px}
+.integrity-summary span{font-size:13px}
+.fairness-controls label{font-size:15px}
+.coverage-list div{font-size:14px;padding:10px 0}
+.metric span,.metric small,.integrity-live span,.integrity-live small{font-size:13px;line-height:1.45}
+.director-note{font-size:14px}.director-note span{font-size:12px}
+.empty{font-size:16px}
+.review-head{font-size:13px}.transcript-review>p{font-size:15px}
+.evidence-receipt summary{font-size:14px}.evidence-receipt p{font-size:15px}.evidence-receipt small{font-size:13px}
