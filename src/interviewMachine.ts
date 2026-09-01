@@ -3,9 +3,9 @@ export type IntroSignal = "identity" | "strengths" | "direction" | "role-connect
 export type ExperienceSignal = "context" | "ownership" | "reasoning" | "difficulty" | "impact" | "reflection";
 export type EvidenceSignal = IntroSignal | ExperienceSignal;
 
-export interface EvidenceRecord { answer: string; stage: Stage; signals: EvidenceSignal[]; answeredAt: number; durationMs: number; }
+export interface EvidenceRecord { answer: string; stage: Stage; signals: EvidenceSignal[]; answeredAt: number; durationMs: number; candidateConfirmed: boolean; transcriptEdited: boolean; }
 export interface DirectorNote { kind: "follow-up" | "redirect" | "transition" | "support"; at: number; message: string; }
-export type Signal = { type: "START"; now: number } | { type: "ANSWER"; now: number; text: string; durationMs?: number } | { type: "TICK"; now: number } | { type: "END"; now: number };
+export type Signal = { type: "START"; now: number } | { type: "ANSWER"; now: number; text: string; durationMs?: number; transcriptEdited?: boolean } | { type: "TICK"; now: number } | { type: "END"; now: number };
 export interface Transition { from: Stage; to: Stage; reason: "evidence-complete" | "question-limit" | "time-fallback" | "manual"; at: number; }
 
 export interface InterviewState {
@@ -80,7 +80,7 @@ export function reduceInterview(state: InterviewState, signal: Signal): Intervie
   if (signal.type === "START" && state.stage === "briefing") return transition({ ...state, currentPrompt: INTRO_QUESTIONS[0], promptReason: "Opening question establishes identity, strengths, and direction." }, "introduction", "manual", signal.now);
   if (signal.type === "ANSWER" && (state.stage === "introduction" || state.stage === "experience")) {
     const durationMs = signal.durationMs ?? Math.max(0, signal.now - state.questionStartedAt);
-    const record: EvidenceRecord = { answer: signal.text, stage: state.stage, signals: extractSignals(state.stage, signal.text), answeredAt: signal.now, durationMs };
+    const record: EvidenceRecord = { answer: signal.text, stage: state.stage, signals: extractSignals(state.stage, signal.text), answeredAt: signal.now, durationMs, candidateConfirmed: true, transcriptEdited: signal.transcriptEdited ?? false };
     let next: InterviewState = { ...state, evidence: [...state.evidence, record], turnsInStage: state.turnsInStage + 1 };
     if (durationMs >= SOFT_REDIRECT_MS) next = { ...next, directorNotes: [...next.directorNotes, { kind: "redirect", at: signal.now, message: "Answer passed the soft 2½-minute guide; the next prompt narrows focus without penalizing the candidate." }] };
     const questions = state.stage === "introduction" ? INTRO_QUESTIONS : EXPERIENCE_QUESTIONS;

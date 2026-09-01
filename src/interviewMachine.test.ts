@@ -30,4 +30,8 @@ describe("adaptive interview director", () => {
     const state = reduceInterview(start(), { type: "ANSWER", now: 200_000, durationMs: 160_000, text: "I am an engineer looking for my next role because I want to own larger systems." });
     expect(state.directorNotes.some((note) => note.kind === "redirect")).toBe(true);
   });
+  it("stores candidate-confirmed transcript evidence and records corrections", () => {
+    const state = reduceInterview(start(), { type: "ANSWER", now: 10_000, durationMs: 20_000, text: "I am an engineer.", transcriptEdited: true });
+    expect(state.evidence[0]).toMatchObject({ answer: "I am an engineer.", candidateConfirmed: true, transcriptEdited: true });
+  });
 });

@@ -29,6 +29,14 @@ The candidate receives a clear pre-interview disclosure. During an active interv
 
 Interviewer prompts remain visible as persistent subtitles. Candidates can use **Repeat question** at any time; the action replays the prompt in demo mode, does not consume a follow-up, and never affects evidence scoring. A production LiveKit adapter should route this action to the active agent's speech output while keeping the same caption text.
 
+## Candidate-confirmed transcripts
+
+Speech recognition errors can distort accents, names, and technical terms. Every answer therefore pauses at a transcript checkpoint before evaluation. The candidate can correct the text or return to the answer; the Director scores only the candidate-confirmed version. The evidence record stores whether a correction occurred, but does not treat a correction as a negative signal.
+
+## Candidate agency and recourse
+
+Before starting, a candidate can enable **Focus Assist** to use assistive technology, notes, or context switching without attention-event collection, and can enable a low-motion interface. Neither setting affects scoring. The debrief provides an answer-level evidence receipt and a human-review request so an automated interpretation can be challenged instead of becoming an unreviewable verdict.
+
 ## Run locally
 
 ```bash

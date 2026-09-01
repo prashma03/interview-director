@@ -24,6 +24,10 @@ Every transition records its timestamp and reason. The UI can therefore demonstr
 
 The demo-mode Director uses deterministic signal extraction so its behavior can be tested without provider credentials. A production LLM adapter should return the same schema rather than controlling the workflow directly.
 
+Final voice transcripts must pass through the candidate-confirmation checkpoint before they emit `ANSWER`. Interim or unconfirmed ASR text is presentation data, never hiring evidence. This prevents recognition errors from silently changing follow-ups or the debrief.
+
+Accessibility preferences live outside the evidence schema. Focus Assist disables visibility/focus/paste collection at the source, rather than collecting events and hiding them later. A human-review request is a recourse signal for the employer workflow and must not be represented as negative candidate evidence.
+
 ```text
 answer → extract covered signals → find highest-value gap
                                   ├─ no important gap → next primary question
