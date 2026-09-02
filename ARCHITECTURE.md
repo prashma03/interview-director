@@ -1,64 +1,79 @@
 # Architecture
 
-## Product boundary
+## Runtime components
 
-Interview Director is one application with three deliberately separate layers:
+| Component | Implementation | Authority |
+|---|---|---|
+| Web client | React, Vite, `livekit-client` | UI, microphone permission, transcript confirmation |
+| Session API | Express, `livekit-server-sdk` | Short-lived room tokens and optional standalone Tavus CVI lifecycle |
+| Agent worker | LiveKit Agents for Node.js | STT/LLM/TTS orchestration and room lifecycle |
+| Interview Director | `src/interviewMachine.ts` | Sole owner of stages, questions, evidence, limits, and transitions |
+| Avatar | Official LiveKit Tavus plugin | Lip-synced video/audio rendering only |
 
-1. **Director** — owns the finite interview workflow and its invariants.
-2. **Voice room** — LiveKit transports audio and supplies turn/interruption events.
-3. **Presence** — Tavus renders the interviewer; it never decides workflow state.
+The LLM never mutates workflow state. `IntroductionAgent` and `ExperienceAgent` differ only in conversational instructions. Both send final, candidate-confirmed answers into the same provider-independent Director.
 
-Keeping the Director independent prevents a model or avatar failure from trapping the candidate in one stage.
-
-## State transition contract
-
-| From | To | Normal trigger | Fallback |
-|---|---|---|---|
-| Briefing | Introduction | candidate starts | none |
-| Introduction | Experience | introduction is complete | 2 turns or 150 seconds |
-| Experience | Debrief | required evidence collected | primary-question/follow-up cap or 300 seconds |
-
-Every transition records its timestamp and reason. The UI can therefore demonstrate that the fallback requirement is real rather than prompt text.
-
-## Evidence-driven questioning
-
-The demo-mode Director uses deterministic signal extraction so its behavior can be tested without provider credentials. A production LLM adapter should return the same schema rather than controlling the workflow directly.
-
-Final voice transcripts must pass through the candidate-confirmation checkpoint before they emit `ANSWER`. Interim or unconfirmed ASR text is presentation data, never hiring evidence. This prevents recognition errors from silently changing follow-ups or the debrief.
-
-Accessibility preferences live outside the evidence schema. Focus Assist disables visibility/focus/paste collection at the source, rather than collecting events and hiding them later. A human-review request is a recourse signal for the employer workflow and must not be represented as negative candidate evidence.
+## State and evidence flow
 
 ```text
-answer → extract covered signals → find highest-value gap
-                                  ├─ no important gap → next primary question
-                                  ├─ fewer than 2 follow-ups → targeted follow-up + reason
-                                  └─ cap reached → record gap + move forward
+briefing → introduction → experience → debrief → ended
+                 │              │
+                 └──── shared confirmed evidence ────┘
 ```
 
-The required experience evidence is context, ownership, reasoning, and impact. Difficulty and reflection improve the evaluation but do not trap the candidate in the stage. The debrief only marks signals actually found in candidate answers.
+Introduction collects identity/background, strengths, direction, and role connection. Experience collects context, ownership, reasoning, difficulty, impact, and reflection. Deterministic extraction maps confirmed text to this schema. A follow-up targets the highest-priority missing signal and is recorded so the same gap is not asked twice for one primary question.
 
-## Live flow
+Normal stage completion requires the configured primary questions and required evidence. Fallbacks are 150 seconds or six turns for introduction and 300 seconds or nine turns for experience. Timers use monotonic process time. Every transition stores from/to stages, wall-clock timestamp, trigger, epoch, machine reason, and a human-readable explanation.
+
+Event IDs reject duplicate delivery. Stage epochs reject late answers from a previous agent. `ended` is terminal, so late timers and provider events cannot reopen the interview.
+
+## Real-time data flow
 
 ```text
-Browser ──POST /api/session──> API ──signed JWT──> Browser
-   │                                                │
-   └──────────── WebRTC / audio ───────────────> LiveKit room
-                                                    │
-                                          LiveKit agent worker
-                                                    │
-                                          Director state machine
-
-Browser ──POST /api/avatar/conversation──> API ──> Tavus
+Browser ── POST /api/session ──> Express API
+Browser <── 15-minute room JWT ─ Express API
+Browser ═════ WebRTC microphone/data/audio/video ═════ LiveKit room
+                                                        │
+                                              LiveKit AgentSession
+                                                        │
+                           streaming STT → confirmed-text gate → Director
+                                                        │
+                                    stage-specific LLM acknowledgment
+                                                        │
+                                              low-latency TTS text/audio
+                                                        │
+                                            Tavus echo PAL + Face
+                                                        │
+Browser <══════════ Tavus participant audio/video ══════╝
 ```
 
-## Security choices
+Final STT produces a reliable `transcript-final` data message. The worker waits while the browser lets the candidate edit or confirm it. Only `confirm-transcript` produces an `ANSWER` event. Interim STT never enters evidence. If the stage epoch changes while confirmation is open, the stale confirmation is discarded.
 
-- LiveKit and Tavus credentials remain server-side.
-- Session tokens expire after 15 minutes and grant access to one random room.
-- Tavus recording is disabled by default.
-- Candidate strings are length-limited before reaching provider APIs.
-- A production build should add authentication, rate limiting, consent, retention controls, and provider webhook verification.
+Director state, agent/user speaking state, avatar status, interruptions, provider errors, and latency marks are published on the `interview.state` topic. Candidate commands use `interview.command`.
 
-## Next adapter work
+## Audio ownership and interruption
 
-The current demo exercises the Director locally. The LiveKit worker should map final transcripts to `ANSWER`, a monotonic timer to `TICK`, and an explicit close action to `END`. During a handoff it should pass a schema-validated summary of the candidate's evidence, not the entire raw transcript.
+When Tavus starts successfully, direct LiveKit agent audio is disabled. LiveKit TTS feeds the Tavus echo pipeline, and Tavus publishes the only audible interviewer track plus synchronized video. This avoids duplicate TTS. If Tavus is absent or fails before session start, the worker reports `unavailable`/`error` and enables direct agent TTS audio; the UI never labels the decorative placeholder as connected.
+
+LiveKit interruption handling requires at least 600 ms and two words. Confirmed interruption diagnostics have a 1.5-second cooldown; short backchannels/noise are reported separately. Pending interviewer speech is yielded, completed transcript/evidence is preserved, and the next acknowledgment is short rather than replaying the full interrupted response.
+
+## Latency observations
+
+- Candidate speech end: worker user-state transition from speaking to listening.
+- Final transcript: LiveKit final STT event.
+- Server output start: agent state becomes speaking.
+- Received audio: browser observes a remote LiveKit active-speaker event.
+- First LLM token: explicitly unavailable because the installed pipeline exposes no trustworthy callback.
+
+The UI reports measurements as observations, not guarantees. Candidate confirmation time is intentionally included in end-to-audio latency because it delays the next response by product design.
+
+## Tavus lifecycle paths
+
+The production interview uses `AvatarSession`, which creates and closes a Tavus conversation tied to the LiveKit room using `TAVUS_PERSONA_ID`/`TAVUS_REPLICA_ID` aliases or the newer PAL/Face IDs.
+
+The API additionally provides `POST /api/tavus/conversations` and `POST /api/tavus/conversations/:conversationId/end` for standalone Persona/Replica CVI lifecycle coverage. Recording is disabled, rooms require authentication, abandoned conversations are ended after 15 minutes, and termination is idempotent. The normal interview never starts this standalone path alongside the plugin because that would create two rooms and competing audio pipelines.
+
+## Security and reliability boundary
+
+Secrets remain in API/worker environments. The API validates strict request schemas and lengths, caps JSON bodies, restricts CORS, and issues one-room tokens. Worker shutdown closes confirmation waits, Tavus, and AgentSession resources.
+
+Prototype limitations remain: no application authentication, distributed rate limiting or idempotency store, persistent encrypted transcript store, webhook verification, formal consent flow, provider cost enforcement, or multi-region failover. These must be added before handling real applicants at scale.

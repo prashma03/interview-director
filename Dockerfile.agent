@@ -1,0 +1,14 @@
+FROM node:24-alpine AS build
+WORKDIR /app
+COPY package*.json tsconfig.agent.json ./
+RUN npm ci
+COPY agent ./agent
+COPY src/interviewMachine.ts ./src/interviewMachine.ts
+RUN npm run build:agent
+
+FROM node:24-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY --from=build /app/dist-agent ./dist-agent
+CMD ["node", "dist-agent/agent/main.js", "start"]

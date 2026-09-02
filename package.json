@@ -6,21 +6,32 @@
   "scripts": {
     "dev": "vite",
     "server": "node --watch server/index.mjs",
-    "build": "tsc -b && vite build",
+    "agent:dev": "npm run build:agent && node dist-agent/agent/main.js dev",
+    "agent:start": "npm run build:agent && node dist-agent/agent/main.js start",
+    "build:agent": "tsc -p tsconfig.agent.json",
+    "build": "tsc -b && npm run build:agent && vite build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@livekit/agents": "^1.7.1",
+    "@livekit/agents-plugin-tavus": "^1.7.1",
+    "@livekit/components-react": "^2.9.24",
+    "@livekit/components-styles": "^1.2.0",
+    "@livekit/rtc-node": "^0.13.34",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest",
     "cors": "latest",
     "dotenv": "latest",
     "express": "latest",
-    "livekit-server-sdk": "latest"
+    "livekit-client": "^2.22.2",
+    "livekit-server-sdk": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "vite": "latest",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@types/node": "^26.4.1",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "typescript": "latest",
